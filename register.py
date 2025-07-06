@@ -2,6 +2,7 @@ import os
 import requests
 from pydantic import BaseModel, EmailStr, Field
 from fastapi import HTTPException
+from typing import Optional
 
 from supabase_client import supabase
 
@@ -12,15 +13,32 @@ class RegisterInput(BaseModel):
     name: str = Field(..., min_length=1)
     phone: str
     location: str
+    organization_id: str | None = None  # optional
 
-def save_user_to_supabase(auth0_user_id: str, email: str, name: str = "", phone: str = "", location: str = ""):
+def add_user_to_organization(org_id: str, user_id: str, mgmt_token: str):
+    url = f"https://{os.getenv('AUTH0_DOMAIN')}/api/v2/organizations/{org_id}/members"
+    headers = {
+        "Authorization": f"Bearer {mgmt_token}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "members": [user_id]
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+    if response.status_code != 204:
+        raise HTTPException(status_code=400, detail=f"Failed to add user to org: {response.text}")
+
+
+def save_user_to_supabase(auth0_user_id: str, email: str, name: str = "", phone: str = "", location: str = "", org_id: Optional[str] = None):
     user_data = {
         "auth0_id": auth0_user_id,
         "email": email,
         "name": name,
         "phone": phone,
         "location": location,
-        "role": "user"
+        "role": "user",
+        "organization_id": org_id  # Save org_id if provided
     }
 
     result = supabase.table("users").insert(user_data).execute()
@@ -42,35 +60,43 @@ def get_management_token():
 def register_user(payload: RegisterInput):
     if payload.password != payload.confirm_password:
         raise HTTPException(status_code=400, detail="Passwords do not match")
-    
+
     token = get_management_token()
-    url = f"https://{os.getenv('AUTH0_DOMAIN')}/api/v2/users"
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
+
     data = {
         "email": payload.email,
         "password": payload.password,
         "connection": "Username-Password-Authentication"
     }
 
-    response = requests.post(url, json=data, headers=headers)
+    response = requests.post(f"https://{os.getenv('AUTH0_DOMAIN')}/api/v2/users", json=data, headers=headers)
     if response.status_code != 201:
         raise HTTPException(status_code=400, detail=response.json())
-    
-    # After Auth0 user created successfully
+
     user_info = response.json()
     auth0_id = user_info["user_id"]
     email = user_info["email"]
 
-    # Save to Supabase
+    auth0_org_id = None 
+    if payload.organization_id:
+        add_user_to_organization(payload.organization_id, auth0_id, token)
+        auth0_org_id = payload.organization_id; 
+
     supabase_user = save_user_to_supabase(
         auth0_user_id=auth0_id,
         email=email,
         name=payload.name,
         phone=payload.phone,
-        location=payload.location
+        location=payload.location,
+        org_id=auth0_org_id
     )
 
-    return {"message": "User created", "auth0_user": user_info, "supabase_user": supabase_user}
+    return {
+        "message": "User created",
+        "auth0_user": user_info,
+        "supabase_user": supabase_user
+    }
