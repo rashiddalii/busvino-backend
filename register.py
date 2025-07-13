@@ -3,8 +3,20 @@ import requests
 from pydantic import BaseModel, EmailStr, Field
 from fastapi import HTTPException
 from typing import Optional
-
 from supabase_client import supabase
+from fastapi.responses import JSONResponse
+
+def create_response(success: bool, message: str, details=None, status_code=200):
+    if details is None:
+        details = []
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "success": success,
+            "message": message,
+            "details": details
+        }
+    )
 
 class RegisterInput(BaseModel):
     email: EmailStr
@@ -28,7 +40,6 @@ def add_user_to_organization(org_id: str, user_id: str, mgmt_token: str):
     response = requests.post(url, json=payload, headers=headers)
     if response.status_code != 204:
         raise HTTPException(status_code=400, detail=f"Failed to add user to org: {response.text}")
-
 
 def save_user_to_supabase(auth0_user_id: str, email: str, name: str = "", phone: str = "", location: str = "", org_id: Optional[str] = None):
     user_data = {
@@ -95,8 +106,14 @@ def register_user(payload: RegisterInput):
         org_id=auth0_org_id
     )
 
-    return {
-        "message": "User created",
+    data = {
         "auth0_user": user_info,
-        "supabase_user": supabase_user
+        "supabase_user": supabase_user,
     }
+
+    return create_response(
+        success=True,
+        message="User created",
+        details=[data],  # wrap your success data in a list for consistency
+        status_code=201
+    )

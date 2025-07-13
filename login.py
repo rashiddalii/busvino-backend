@@ -1,6 +1,7 @@
 import os
 import requests
 from fastapi import HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from jose import jwt
 from supabase import create_client, Client
@@ -9,6 +10,18 @@ from supabase import create_client, Client
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+def create_response(success: bool, message: str, details=None, status_code=200):
+    if details is None:
+        details = []
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "success": success,
+            "message": message,
+            "details": details
+        }
+    )
 
 class LoginInput(BaseModel):
     email: str
@@ -50,8 +63,12 @@ def login_user(payload: LoginInput):
     if not supabase_result.data:
         raise HTTPException(status_code=404, detail="User not found in Supabase")
 
-    return {
-        "message": "Login successful",
-        "tokens": tokens,
-        "supabase_user": supabase_result.data[0]
-    }
+    return create_response(
+        success=True,
+        message="Login successful",
+        details=[{
+            "tokens": tokens,
+            "supabase_user": supabase_result.data[0]
+        }],
+        status_code=200
+    )
