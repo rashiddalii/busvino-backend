@@ -3,7 +3,7 @@ import requests
 from typing import Optional, Dict, Any
 from jose import jwt
 from app.config.settings import settings
-from app.config.database import supabase_client
+from app.config.database import get_supabase_client
 from app.schemas.auth import LoginRequest, RegisterRequest, AuthResponse, UserResponse
 from app.schemas.common import APIResponse
 
@@ -41,6 +41,7 @@ class AuthService:
     @staticmethod
     def save_user_to_supabase(auth0_user_id: str, email: str, name: str, phone: str, location: str, org_id: Optional[str] = None) -> Dict[str, Any]:
         """Save user to Supabase database"""
+        supabase_client = get_supabase_client()
         user_data = {
             "auth0_id": auth0_user_id,
             "email": email,
@@ -172,6 +173,7 @@ class AuthService:
             auth0_id = decoded_token["sub"]
             
             # Check Supabase
+            supabase_client = get_supabase_client()
             supabase_result = supabase_client.table("users").select("*").eq("auth0_id", auth0_id).execute()
             if not supabase_result.data:
                 return APIResponse(

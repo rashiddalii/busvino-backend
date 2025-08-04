@@ -6,7 +6,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.config.settings import settings
-from app.config.database import supabase_client
+from app.config.database import get_supabase_client
 from app.models.user import UserRole, UserResponse, TokenData
 
 # Security configuration
@@ -74,6 +74,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     token_data = verify_token(credentials.credentials)
     
     # Get user from Supabase
+    supabase_client = get_supabase_client()
     result = supabase_client.table("users").select("*").eq("id", token_data.user_id).execute()
     
     if not result.data:
@@ -128,6 +129,7 @@ async def get_auth0_user(credentials: HTTPAuthorizationCredentials = Depends(sec
         auth0_id = decoded_token["sub"]
         
         # Get user from Supabase using auth0_id
+        supabase_client = get_supabase_client()
         result = supabase_client.table("users").select("*").eq("auth0_id", auth0_id).execute()
         
         if not result.data:
