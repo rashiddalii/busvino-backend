@@ -97,7 +97,7 @@ async def require_role(required_role: UserRole):
         return current_user
     return role_checker
 
-async def require_admin(current_user: UserResponse = Depends(get_current_user)):
+async def require_admin(current_user: Auth0User = Depends(get_auth0_user)):
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -105,7 +105,7 @@ async def require_admin(current_user: UserResponse = Depends(get_current_user)):
         )
     return current_user
 
-async def require_driver_or_admin(current_user: UserResponse = Depends(get_current_user)):
+async def require_driver_or_admin(current_user: Auth0User = Depends(get_auth0_user)):
     if current_user.role not in [UserRole.DRIVER, UserRole.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -1,424 +1,295 @@
-# Bus Tracking API
+# Bus Tracking SaaS API
 
-A comprehensive FastAPI-based backend for a bus tracking and management system. This API provides endpoints for user management, bus tracking, route management, schedule management, and real-time location updates.
+A comprehensive FastAPI-based backend for a bus tracking SaaS application with Auth0 integration and Supabase database.
 
-## Features
+## 🚀 Features
 
-### User Features
-- **User Registration/Login**: Secure authentication with Auth0 integration
-- **Live Bus Tracking**: Real-time location updates
-- **Estimated Time of Arrival (ETA)**: Calculate arrival times
-- **Route Details & Schedules**: View route information and timetables
-- **Basic Dashboard**: User's selected route/bus details and announcements
+### ✅ Completed Features
+- **User Authentication**: Registration and login with Auth0
+- **Role-Based Access Control**: Student, Employee, Driver, Admin roles
+- **Admin User Management**: Complete CRUD operations for user management
+- **Professional API Structure**: Scalable, modular architecture
+- **Vercel Deployment Ready**: Optimized for serverless deployment
 
-### Admin Features
-- **User Management**: Add/remove users, assign roles (student, employee, driver, admin)
-- **Bus Management**: Register buses with license plate, capacity, driver assignment
-- **Route Management**: Define routes with stops and sequence
-- **Schedule Management**: Set departure/arrival times for each route
-- **Announcements**: Broadcast delays, holidays, or policy changes
-- **Basic Analytics**: Monitor bus punctuality and route adherence
+### 🚧 In Progress
+- Bus Management (Week 2)
+- Route Management (Week 3)
+- Schedule Management (Week 4)
+- Live Tracking (Week 6)
 
-### Driver Features
-- **Real-Time Location Sharing**: GPS-enabled location updates
-- **Trip Start/End**: Toggle to indicate when trips begin/end
-- **Basic Communication**: Emergency button to notify admins
-- **Route Guidance**: Turn-by-turn navigation integration
+## 🏗️ Architecture
 
-## Technology Stack
+```
+fastApi/
+├── api/
+│   └── index.py              # Main FastAPI application
+├── app/
+│   ├── config/               # Configuration management
+│   │   ├── settings.py       # App settings with pydantic
+│   │   └── database.py       # Supabase client configuration
+│   ├── core/                 # Core functionality
+│   │   ├── auth.py          # Authentication & authorization
+│   │   └── database.py      # Database dependencies
+│   ├── models/              # Pydantic data models
+│   │   ├── user.py          # User models with roles & status
+│   │   ├── bus.py           # Bus models (placeholder)
+│   │   ├── route.py         # Route models (placeholder)
+│   │   └── schedule.py      # Schedule models (placeholder)
+│   ├── schemas/             # API request/response schemas
+│   │   ├── common.py        # Common response schemas
+│   │   └── auth.py          # Auth-specific schemas
+│   ├── services/            # Business logic layer
+│   │   ├── auth_service.py  # Authentication service
+│   │   └── user_service.py  # User management service
+│   ├── utils/               # Utility functions
+│   │   └── handlers.py      # Exception handlers
+│   └── api/v1/              # API version 1
+│       ├── auth.py          # Authentication endpoints
+│       └── users.py         # User management endpoints
+├── requirements.txt          # Python dependencies
+├── vercel.json              # Vercel deployment config
+└── README.md               # This file
+```
 
-- **FastAPI**: Modern, fast web framework for building APIs
-- **Supabase**: Backend-as-a-Service with PostgreSQL database
-- **Auth0**: Authentication and authorization service
-- **JWT**: JSON Web Tokens for secure authentication
-- **Pydantic**: Data validation and serialization
-- **Python**: Core programming language
-
-## Quick Start
+## 🔧 Setup
 
 ### Prerequisites
+- Python 3.8+
+- Supabase account
+- Auth0 account
 
-1. Python 3.8+
-2. Supabase account and project
-3. Auth0 account and application
-
-### Environment Setup
-
-Create a `.env` file in the root directory:
-
+### Environment Variables
+Create a `.env` file:
 ```env
-# Supabase Configuration
 SUPABASE_URL=your_supabase_url
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-
-# Auth0 Configuration
 AUTH0_DOMAIN=your_auth0_domain
 AUTH0_CLIENT_ID=your_auth0_client_id
 AUTH0_CLIENT_SECRET=your_auth0_client_secret
-API_AUDIENCE=your_api_audience
-
-# JWT Configuration
-JWT_SECRET_KEY=your_jwt_secret_key
 ```
 
 ### Installation
-
-1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd bus-tracking-api
-```
-
-2. Create a virtual environment:
-```bash
+# Create virtual environment
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
 
-3. Install dependencies:
-```bash
+# Install dependencies
 pip install -r requirements.txt
+
+# Run the application
+uvicorn api.index:app --reload --host 0.0.0.0 --port 8000
 ```
 
-4. Set up Supabase database tables (see Database Setup section)
+## 📊 Database Schema
 
-5. Run the application:
-```bash
-uvicorn main:app --reload
-```
-
-The API will be available at `http://localhost:8000`
-
-## Database Setup
-
-### Supabase Tables
-
-Create the following tables in your Supabase project:
-
-#### Users Table
+### Users Table
 ```sql
 CREATE TABLE users (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    auth0_id TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL,
-    phone TEXT,
-    location TEXT,
-    role TEXT DEFAULT 'student' CHECK (role IN ('student', 'employee', 'driver', 'admin')),
-    organization_id TEXT,
-    is_active BOOLEAN DEFAULT true,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    auth0_id VARCHAR(255) UNIQUE,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    phone VARCHAR(20),
+    location VARCHAR(200),
+    role VARCHAR(20) NOT NULL DEFAULT 'student' 
+        CHECK (role IN ('student', 'employee', 'driver', 'admin')),
+    status VARCHAR(20) NOT NULL DEFAULT 'active' 
+        CHECK (status IN ('active', 'inactive', 'suspended')),
+    organization_id VARCHAR(255),
+    created_by UUID REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
 
-#### Buses Table
+### User Audit Log
 ```sql
-CREATE TABLE buses (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    license_plate TEXT UNIQUE NOT NULL,
-    capacity INTEGER NOT NULL,
-    model TEXT,
-    year INTEGER,
-    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'maintenance', 'inactive')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE user_audit_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    admin_id UUID NOT NULL REFERENCES users(id),
+    action VARCHAR(50) NOT NULL,
+    field_name VARCHAR(50),
+    old_value TEXT,
+    new_value TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
 
-#### Bus Driver Assignments Table
-```sql
-CREATE TABLE bus_driver_assignments (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    bus_id UUID REFERENCES buses(id) ON DELETE CASCADE,
-    driver_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    is_active BOOLEAN DEFAULT true
-);
+## 🔐 Authentication
+
+### User Roles
+- **Student**: Basic access to view routes and schedules
+- **Employee**: Can view and manage schedules
+- **Driver**: Can update bus location and trip status
+- **Admin**: Full access to all features including user management
+
+### Authentication Flow
+1. User registers/logs in via Auth0
+2. Auth0 returns JWT token
+3. API validates token and fetches user from Supabase
+4. Role-based access control applied to endpoints
+
+## 📡 API Endpoints
+
+### Authentication
+```
+POST /register              # User registration
+POST /login                 # User login
+GET  /protected             # Protected route example
+GET  /api/v1/auth/me       # Get current user
 ```
 
-#### Stops Table
-```sql
-CREATE TABLE stops (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    name TEXT NOT NULL,
-    address TEXT,
-    latitude DOUBLE PRECISION,
-    longitude DOUBLE PRECISION,
-    description TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+### User Management (Admin Only)
+```
+GET    /api/v1/users/                    # List users with filtering
+POST   /api/v1/users/                    # Create new user
+GET    /api/v1/users/{user_id}           # Get specific user
+PUT    /api/v1/users/{user_id}           # Update user
+DELETE /api/v1/users/{user_id}           # Delete user (soft delete)
+PATCH  /api/v1/users/{user_id}/role      # Assign role to user
+GET    /api/v1/users/roles/available     # Get available roles
+GET    /api/v1/users/statuses/available  # Get available statuses
 ```
 
-#### Routes Table
-```sql
-CREATE TABLE routes (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+### Query Parameters for User Listing
+- `role`: Filter by user role (student, employee, driver, admin)
+- `status`: Filter by user status (active, inactive, suspended)
+- `search`: Search by name or email
+- `page`: Page number (default: 1)
+- `per_page`: Items per page (default: 20, max: 100)
+
+## 🧪 Testing
+
+### Basic API Tests
+```bash
+python test_new_api.py
 ```
 
-#### Route Stops Table
-```sql
-CREATE TABLE route_stops (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    route_id UUID REFERENCES routes(id) ON DELETE CASCADE,
-    stop_id UUID REFERENCES stops(id) ON DELETE CASCADE,
-    sequence_order INTEGER NOT NULL,
-    estimated_time INTEGER, -- minutes from route start
-    UNIQUE(route_id, stop_id)
-);
+### User Management Tests
+```bash
+python test_user_management.py
 ```
 
-#### Schedules Table
-```sql
-CREATE TABLE schedules (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    route_id UUID REFERENCES routes(id) ON DELETE CASCADE,
-    bus_id UUID REFERENCES buses(id) ON DELETE CASCADE,
-    driver_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    departure_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    arrival_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    days_of_week INTEGER[] NOT NULL, -- 0=Monday, 6=Sunday
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+## 🚀 Deployment
+
+### Vercel Deployment
+1. Connect your GitHub repository to Vercel
+2. Set environment variables in Vercel dashboard
+3. Deploy automatically on push to main branch
+
+### Environment Variables for Vercel
+```env
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+AUTH0_DOMAIN=your_auth0_domain
+AUTH0_CLIENT_ID=your_auth0_client_id
+AUTH0_CLIENT_SECRET=your_auth0_client_secret
 ```
 
-#### Trips Table
-```sql
-CREATE TABLE trips (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    schedule_id UUID REFERENCES schedules(id) ON DELETE CASCADE,
-    bus_id UUID REFERENCES buses(id) ON DELETE CASCADE,
-    driver_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    route_id UUID REFERENCES routes(id) ON DELETE CASCADE,
-    departure_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    estimated_arrival_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    actual_departure_time TIMESTAMP WITH TIME ZONE,
-    actual_arrival_time TIMESTAMP WITH TIME ZONE,
-    status TEXT DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'in_progress', 'completed', 'cancelled')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+## 📋 API Examples
+
+### Create User (Admin)
+```bash
+curl -X POST "http://localhost:8000/api/v1/users/" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "newuser@example.com",
+    "name": "New User",
+    "phone": "+1234567890",
+    "location": "City Name",
+    "role": "student",
+    "status": "active",
+    "password": "SecurePassword123!"
+  }'
 ```
 
-#### Bus Locations Table
-```sql
-CREATE TABLE bus_locations (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    bus_id UUID REFERENCES buses(id) ON DELETE CASCADE,
-    trip_id UUID REFERENCES trips(id) ON DELETE CASCADE,
-    latitude DOUBLE PRECISION NOT NULL,
-    longitude DOUBLE PRECISION NOT NULL,
-    speed DOUBLE PRECISION,
-    heading DOUBLE PRECISION,
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+### List Users with Filtering
+```bash
+curl -X GET "http://localhost:8000/api/v1/users/?role=student&status=active&page=1&per_page=10" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
 ```
 
-#### Announcements Table
-```sql
-CREATE TABLE announcements (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    title TEXT NOT NULL,
-    message TEXT NOT NULL,
-    type TEXT NOT NULL, -- delay, holiday, policy, general
-    priority TEXT DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
-    is_active BOOLEAN DEFAULT true,
-    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+### Assign Role
+```bash
+curl -X PATCH "http://localhost:8000/api/v1/users/USER_ID/role?role=employee" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
 ```
 
-#### User Favorite Routes Table
-```sql
-CREATE TABLE user_favorite_routes (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    route_id UUID REFERENCES routes(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, route_id)
-);
-```
+## 🔒 Security Features
 
-## API Documentation
+- **JWT Token Validation**: All protected endpoints validate Auth0 tokens
+- **Role-Based Access Control**: Endpoints restricted by user role
+- **Soft Delete**: Users are marked inactive rather than deleted
+- **Audit Logging**: All user changes are logged with admin tracking
+- **Input Validation**: All inputs validated with Pydantic models
 
-Once the server is running, you can access:
+## 📈 Performance Optimizations
 
-- **Interactive API Documentation**: `http://localhost:8000/docs`
-- **Alternative API Documentation**: `http://localhost:8000/redoc`
+- **Lazy Loading**: Supabase client initialized on-demand
+- **Database Indexes**: Optimized queries with proper indexing
+- **Pagination**: Large datasets handled efficiently
+- **Caching**: Ready for Redis integration
 
-## API Endpoints
-
-### Authentication (`/api/auth`)
-
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| POST | `/register` | Register new user | Public |
-| POST | `/login` | User login | Public |
-| POST | `/refresh` | Refresh access token | Authenticated |
-| GET | `/me` | Get current user info | Authenticated |
-| POST | `/logout` | Logout user | Authenticated |
-
-### User Management (`/api/auth/admin`)
-
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/users` | Get all users | Admin |
-| GET | `/users/{user_id}` | Get specific user | Admin |
-| PUT | `/users/{user_id}` | Update user | Admin |
-| DELETE | `/users/{user_id}` | Delete user | Admin |
-| PUT | `/users/{user_id}/role` | Update user role | Admin |
-| PUT | `/users/{user_id}/toggle-status` | Toggle user status | Admin |
-
-### Bus Management (`/api/buses`)
-
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/` | Get all buses | Authenticated |
-| POST | `/` | Create new bus | Admin |
-| GET | `/{bus_id}` | Get specific bus | Authenticated |
-| PUT | `/{bus_id}` | Update bus | Admin |
-| DELETE | `/{bus_id}` | Delete bus | Admin |
-| POST | `/{bus_id}/assign-driver` | Assign driver to bus | Admin |
-| GET | `/{bus_id}/driver` | Get bus driver | Authenticated |
-| PUT | `/{bus_id}/status` | Update bus status | Admin |
-
-### Route Management (`/api/routes`)
-
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/` | Get all routes | Authenticated |
-| POST | `/` | Create new route | Admin |
-| GET | `/{route_id}` | Get specific route | Authenticated |
-| PUT | `/{route_id}` | Update route | Admin |
-| DELETE | `/{route_id}` | Delete route | Admin |
-| GET | `/{route_id}/details` | Get route details | Authenticated |
-
-### Stop Management (`/api/routes/stops`)
-
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/` | Get all stops | Authenticated |
-| POST | `/` | Create new stop | Admin |
-| GET | `/{stop_id}` | Get specific stop | Authenticated |
-| PUT | `/{stop_id}` | Update stop | Admin |
-| DELETE | `/{stop_id}` | Delete stop | Admin |
-
-### Route Stops Management (`/api/routes/{route_id}/stops`)
-
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/` | Get route stops | Authenticated |
-| POST | `/` | Add stop to route | Admin |
-| PUT | `/{stop_id}` | Update route stop | Admin |
-| DELETE | `/{stop_id}` | Remove stop from route | Admin |
-
-### Schedule Management (`/api/schedules`)
-
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/` | Get all schedules | Authenticated |
-| POST | `/` | Create new schedule | Admin |
-| GET | `/{schedule_id}` | Get specific schedule | Authenticated |
-| PUT | `/{schedule_id}` | Update schedule | Admin |
-| DELETE | `/{schedule_id}` | Delete schedule | Admin |
-
-### User Dashboard (`/api/schedules/user`)
-
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/dashboard` | Get user dashboard | Authenticated |
-| GET | `/favorite-routes` | Get user's favorite routes | Authenticated |
-| POST | `/favorite-routes/{route_id}` | Add route to favorites | Authenticated |
-| DELETE | `/favorite-routes/{route_id}` | Remove route from favorites | Authenticated |
-
-## Security Features
-
-- **JWT Authentication**: Secure token-based authentication
-- **Role-Based Access Control**: Different permissions for different user roles
-- **Password Hashing**: Secure password storage with bcrypt
-- **CORS Support**: Cross-origin resource sharing configuration
-- **Input Validation**: Pydantic models for request/response validation
-
-## Development Guidelines
-
-### Code Structure
-
-```
-bus-tracking-api/
-├── main.py                 # FastAPI application entry point
-├── database.py             # Supabase client configuration
-├── auth.py                 # Authentication and authorization logic
-├── models.py               # Pydantic models for data validation
-├── auth_routes.py          # Authentication and user management routes
-├── bus_routes.py           # Bus management routes
-├── route_routes.py         # Route and stop management routes
-├── schedule_routes.py      # Schedule and dashboard routes
-├── supabase_client.py      # Supabase client setup
-├── requirements.txt        # Python dependencies
-├── test_api.py            # API testing script
-└── README.md              # Project documentation
-```
+## 🛠️ Development
 
 ### Adding New Features
+1. Create models in `app/models/`
+2. Add services in `app/services/`
+3. Create API routes in `app/api/v1/`
+4. Update database schema
+5. Add tests
+6. Update documentation
 
-1. **Create Pydantic models** in `models.py` for request/response validation
-2. **Add database operations** using Supabase client in `database.py`
-3. **Create route handlers** in appropriate route files
-4. **Add authentication/authorization** using dependencies from `auth.py`
-5. **Update tests** in `test_api.py`
+### Code Style
+- Follow PEP 8
+- Use type hints
+- Add docstrings
+- Write comprehensive tests
 
-### Testing
+## 📞 Support
 
-Run the test suite:
+For issues and questions:
+1. Check the API documentation at `/docs`
+2. Review the test files for usage examples
+3. Check the database schema for data structure
 
-```bash
-python test_api.py
-```
+## 🎯 Roadmap
 
-## Deployment
+### Week 1 ✅
+- [x] User Registration/Login
+- [x] User Management (Admin)
 
-### Environment Variables
+### Week 2 🚧
+- [ ] Bus Management
+- [ ] Register Buses
+- [ ] Assign Drivers & Capacity
 
-Ensure all required environment variables are set in your deployment environment:
+### Week 3 📋
+- [ ] Route Management
+- [ ] Define Routes & Stops
+- [ ] Route Details & Schedules
 
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `AUTH0_DOMAIN`
-- `AUTH0_CLIENT_ID`
-- `AUTH0_CLIENT_SECRET`
-- `API_AUDIENCE`
-- `JWT_SECRET_KEY`
+### Week 4 📋
+- [ ] Schedule Management
+- [ ] User Dashboard
 
-### Production Considerations
+### Week 5 📋
+- [ ] Announcements
+- [ ] Trip Start/End Toggle
 
-1. **Security**: Use strong JWT secrets and secure environment variables
-2. **CORS**: Configure CORS properly for your frontend domain
-3. **Rate Limiting**: Implement rate limiting for API endpoints
-4. **Logging**: Add comprehensive logging for monitoring
-5. **Error Handling**: Implement proper error handling and monitoring
+### Week 6 📋
+- [ ] Live Bus Tracking
+- [ ] ETA Calculations
+- [ ] Real-Time Location Sharing
 
-## Contributing
+### Week 7 📋
+- [ ] Route Guidance
+- [ ] Turn-by-turn Navigation
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.
-
-## Support
-
-For support and questions, please open an issue in the repository.
+### Week 8 📋
+- [ ] Emergency Communication
+- [ ] Basic Analytics
+- [ ] AI Integration
