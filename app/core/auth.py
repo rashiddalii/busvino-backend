@@ -69,6 +69,49 @@ def verify_token(token: str) -> TokenData:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+# Auth0 compatibility function - MOVED UP BEFORE DEPENDENT FUNCTIONS
+async def get_auth0_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Auth0User:
+    """Get current user for Auth0 compatibility"""
+    try:
+        # Decode Auth0 token without verification (since we trust Auth0)
+        token = credentials.credentials
+        decoded_token = jwt.decode(
+            token,
+            key=None,
+            options={"verify_signature": False, "verify_aud": False}
+        )
+        
+        # Extract Auth0 user ID from token
+        auth0_id = decoded_token["sub"]
+        
+        # Get user from Supabase using auth0_id
+        supabase_client = get_supabase_client()
+        result = supabase_client.table("users").select("*").eq("auth0_id", auth0_id).execute()
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        user_data = result.data[0]
+        return Auth0User(
+            user_id=user_data["id"],
+            email=user_data["email"],
+            name=user_data["name"],
+            phone=user_data["phone"],
+            location=user_data["location"],
+            role=user_data["role"],
+            organization_id=user_data.get("organization_id")
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
 # Authentication dependencies
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> UserResponse:
     token_data = verify_token(credentials.credentials)
@@ -111,47 +154,4 @@ async def require_driver_or_admin(current_user: Auth0User = Depends(get_auth0_us
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied. Driver or Admin role required"
         )
-    return current_user
-
-# Auth0 compatibility function
-async def get_auth0_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Auth0User:
-    """Get current user for Auth0 compatibility"""
-    try:
-        # Decode Auth0 token without verification (since we trust Auth0)
-        token = credentials.credentials
-        decoded_token = jwt.decode(
-            token,
-            key=None,
-            options={"verify_signature": False, "verify_aud": False}
-        )
-        
-        # Extract Auth0 user ID from token
-        auth0_id = decoded_token["sub"]
-        
-        # Get user from Supabase using auth0_id
-        supabase_client = get_supabase_client()
-        result = supabase_client.table("users").select("*").eq("auth0_id", auth0_id).execute()
-        
-        if not result.data:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        user_data = result.data[0]
-        return Auth0User(
-            user_id=user_data["id"],
-            email=user_data["email"],
-            name=user_data["name"],
-            phone=user_data["phone"],
-            location=user_data["location"],
-            role=user_data["role"],
-            organization_id=user_data.get("organization_id")
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) 
+    return current_user 

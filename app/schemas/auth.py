@@ -17,6 +17,22 @@ class RegisterRequest(BaseModel):
     location: str = Field(..., min_length=1, max_length=200)
     organization_id: Optional[str] = None
 
+class ChangePasswordRequest(BaseModel):
+    """Change password request schema"""
+    old_password: str = Field(..., min_length=1, description="Current password")
+    new_password: str = Field(..., min_length=8, description="New password")
+    confirm_new_password: str = Field(..., min_length=8, description="Confirm new password")
+
+class ForgotPasswordRequest(BaseModel):
+    """Forgot password request schema"""
+    email: EmailStr = Field(..., description="Email address to send reset link")
+
+class ResetPasswordRequest(BaseModel):
+    """Reset password request schema"""
+    token: str = Field(..., min_length=1, description="Password reset token")
+    new_password: str = Field(..., min_length=8, description="New password")
+    confirm_new_password: str = Field(..., min_length=8, description="Confirm new password")
+
 class UserResponse(BaseModel):
     """User response schema"""
     id: str

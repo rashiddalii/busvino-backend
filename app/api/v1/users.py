@@ -8,6 +8,48 @@ from app.schemas.auth import UserResponse
 
 router = APIRouter()
 
+# User-side CRUD operations (scoped to authenticated user)
+@router.get("/me", response_model=APIResponse)
+async def get_my_profile(
+    current_user: Auth0User = Depends(get_auth0_user),
+    user_service: UserService = Depends()
+):
+    """Get current user's profile"""
+    result = await user_service.get_my_profile(current_user.user_id)
+    
+    if not result.success:
+        raise HTTPException(status_code=404, detail=result.message)
+    
+    return result
+
+@router.put("/me", response_model=APIResponse)
+async def update_my_profile(
+    user_data: UserUpdate,
+    current_user: Auth0User = Depends(get_auth0_user),
+    user_service: UserService = Depends()
+):
+    """Update current user's profile"""
+    result = await user_service.update_my_profile(current_user.user_id, user_data)
+    
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.message)
+    
+    return result
+
+@router.delete("/me", response_model=APIResponse)
+async def delete_my_account(
+    current_user: Auth0User = Depends(get_auth0_user),
+    user_service: UserService = Depends()
+):
+    """Delete current user's account"""
+    result = await user_service.delete_my_account(current_user.user_id)
+    
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.message)
+    
+    return result
+
+# Admin-side CRUD operations (admin only)
 @router.post("/", response_model=APIResponse)
 async def create_user(
     user_data: UserCreate,
